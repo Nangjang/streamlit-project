@@ -1,52 +1,33 @@
 import streamlit as st
 import pandas as pd
 
-st.title('Title')
-st.header('Header')
-st.subheader('Subheader')
+df = pd.read_csv('startup_funding.csv')
 
-st.write('Normal text')
+# data cleaning
+df['Investors Name'] = df['Investors Name'].fillna('Undisclosed')
 
-st.markdown('''
-## Name of Favourite Movies:
-- The Machinist
-- Memento
-- Shutter Island
-- Inception
-''')
+st.sidebar.title('Startup Funding Analysis')
 
-st.code('''
-def add(a, b):
-    return a + b
+option = st.sidebar.selectbox(
+    'Select One',
+    ['Overall Analysis', 'StartUp', 'Investor']
+)
 
-print(add(10, 20))
-''')
+if option == 'Overall Analysis':
+    st.title('Overall Analysis')
 
-st.latex('''
-(a+b)^2=a^2+2ab+b^2
-''')
+elif option == 'StartUp':
+    st.sidebar.selectbox(
+        'Select StartUp',
+        sorted(df['Startup Name'].unique().tolist())
+    )
+    btn1 = st.sidebar.button('Find StartUp Details')
+    st.title('StartUp Analysis')
 
-ipl_df = pd.read_csv('ipl_deliveries.csv')
-st.dataframe(ipl_df)
-
-st.json({'name': 'Santosh', 'age': 30, 'gender': 'male'})
-
-st.metric(label='Temperature', value='70 °F', delta='1.5 °F')
-
-st.image('beautiful-flowers-lily.webp')
-st.video('LOREM IPSUM - AI Short Film.mp4')
-
-st.sidebar.title('Sidebar')
-st.sidebar.radio('Movie', ['The Machinist', 'Memento', 'Shutter Island', 'Inception'])
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.image('beautiful-flowers-lily.webp')
-
-with col2:
-    st.video('LOREM IPSUM - AI Short Film.mp4')
-
-with col3:
-    st.image('beautiful-flowers-lily.webp')
-
+else:
+    st.sidebar.selectbox(
+        'Select StartUp',
+        sorted(df['Investors Name'].unique().tolist())
+    )
+    btn2 = st.sidebar.button('Find Investor Details')
+    st.title('Investor Analysis')
