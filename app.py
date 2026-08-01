@@ -2,104 +2,193 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-st.set_page_config(layout='wide',page_title='StartUp Analysis')
+# -------------------- Page Configuration --------------------
+st.set_page_config(layout="wide", page_title="Startup Analysis")
 
-df = pd.read_csv('startup_cleaned.csv')
-df['date'] = pd.to_datetime(df['date'],errors='coerce')
-df['month'] = df['date'].dt.month
-df['year'] = df['date'].dt.year
+# -------------------- Load Data --------------------
+funding_df = pd.read_csv("startup_cleaned.csv")
 
-def load_overall_analysis():
-    st.title('Overall Analysis')
+funding_df["date"] = pd.to_datetime(funding_df["date"], errors="coerce")
+funding_df["month"] = funding_df["date"].dt.month
+funding_df["year"] = funding_df["date"].dt.year
 
-    # total invested amount
-    total = round(df['amount'].sum())
-    # max amount infused in a startup
-    max_funding = df.groupby('startup')['amount'].max().sort_values(ascending=False).head(1).values[0]
-    # avg ticket size
-    avg_funding = df.groupby('startup')['amount'].sum().mean()
-    # total funded startups
-    num_startups = df['startup'].nunique()
 
-    col1,col2,col3,col4 = st.columns(4)
+# ==========================================================
+# Overall Analysis
+# ==========================================================
+def show_overall_analysis():
 
-    with col1:
-        st.metric('Total',str(total) + ' Cr')
-    with col2:
-        st.metric('Max', str(max_funding) + ' Cr')
+    st.title("Overall Analysis")
 
-    with col3:
-        st.metric('Avg',str(round(avg_funding)) + ' Cr')
+    # Metrics
+    total_funding = round(funding_df["amount"].sum())
 
-    with col4:
-        st.metric('Funded Startups',num_startups)
+    highest_single_funding = (
+        funding_df.groupby("startup")["amount"]
+        .max()
+        .sort_values(ascending=False)
+        .iloc[0]
+    )
 
-    st.header('MoM graph')
-    selected_option = st.selectbox('Select Type',['Total','Count'])
-    if selected_option == 'Total':
-        temp_df = df.groupby(['year', 'month'])['amount'].sum().reset_index()
+    average_startup_funding = (
+        funding_df.groupby("startup")["amount"]
+        .sum()
+        .mean()
+    )
+
+    total_startups = funding_df["startup"].nunique()
+
+    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+
+    with metric_col1:
+        st.metric("Total", f"{total_funding} Cr")
+
+    with metric_col2:
+        st.metric("Max", f"{highest_single_funding} Cr")
+
+    with metric_col3:
+        st.metric("Average", f"{round(average_startup_funding)} Cr")
+
+    with metric_col4:
+        st.metric("Funded Startups", total_startups)
+
+    # -------------------- Month-on-Month Graph --------------------
+    st.header("Month-on-Month Analysis")
+
+    graph_type = st.selectbox("Select Type", ["Total", "Count"])
+
+    if graph_type == "Total":
+        monthly_df = (
+            funding_df.groupby(["year", "month"])["amount"]
+            .sum()
+            .reset_index()
+        )
     else:
-        temp_df = df.groupby(['year', 'month'])['amount'].count().reset_index()
+        monthly_df = (
+            funding_df.groupby(["year", "month"])["amount"]
+            .count()
+            .reset_index()
+        )
 
-    temp_df['x_axis'] = temp_df['month'].astype('str') + '-' + temp_df['year'].astype('str')
+    monthly_df["x_axis"] = (
+        monthly_df["month"].astype(str)
+        + "-"
+        + monthly_df["year"].astype(str)
+    )
 
-    fig3, ax3 = plt.subplots()
-    ax3.plot(temp_df['x_axis'], temp_df['amount'])
+    mom_fig, mom_ax = plt.subplots()
+    mom_ax.plot(monthly_df["x_axis"], monthly_df["amount"])
 
-    st.pyplot(fig3)
+    st.pyplot(mom_fig)
 
 
+# ==========================================================
+# Investor Analysis
+# ==========================================================
+def show_investor_analysis(investor_name):
 
-def load_investor_details(investor):
-    st.title(investor)
-    # load the recent 5 investments of the investor
-    last5_df = df[df['investors'].str.contains(investor)].head()[['date', 'startup', 'vertical', 'city', 'round', 'amount']]
-    st.subheader('Most Recent Investments')
-    st.dataframe(last5_df)
+    st.title(investor_name)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        # biggest investments
-        big_series = df[df['investors'].str.contains(investor)].groupby('startup')['amount'].sum().sort_values(ascending=False).head()
-        st.subheader('Biggest Investments')
-        fig, ax = plt.subplots()
-        ax.bar(big_series.index,big_series.values)
+    # Recent investments
+    recent_investments_df = (
+        funding_df[funding_df["investors"].str.contains(investor_name)]
+        .head()[["date", "startup", "vertical", "city", "round", "amount"]]
+    )
 
-        st.pyplot(fig)
+    st.subheader("Most Recent Investments")
+    st.dataframe(recent_investments_df)
 
-    with col2:
-        verical_series = df[df['investors'].str.contains(investor)].groupby('vertical')['amount'].sum()
+    left_col, right_col = st.columns(2)
 
-        st.subheader('Sectors invested in')
-        fig1, ax1 = plt.subplots()
-        ax1.pie(verical_series,labels=verical_series.index,autopct="%0.01f%%")
+    # Biggest investments
+    with left_col:
 
-        st.pyplot(fig1)
+        top_startups_series = (
+            funding_df[funding_df["investors"].str.contains(investor_name)]
+            .groupby("startup")["amount"]
+            .sum()
+            .sort_values(ascending=False)
+            .head()
+        )
 
-    print(df.info())
+        st.subheader("Biggest Investments")
 
-    df['year'] = df['date'].dt.year
-    year_series = df[df['investors'].str.contains(investor)].groupby('year')['amount'].sum()
+        bar_fig, bar_ax = plt.subplots()
+        bar_ax.bar(top_startups_series.index, top_startups_series.values)
 
-    st.subheader('YoY Investment')
-    fig2, ax2 = plt.subplots()
-    ax2.plot(year_series.index,year_series.values)
+        st.pyplot(bar_fig)
 
-    st.pyplot(fig2)
+    # Sector-wise investment
+    with right_col:
 
-st.sidebar.title('Startup Funding Analysis')
+        sector_series = (
+            funding_df[funding_df["investors"].str.contains(investor_name)]
+            .groupby("vertical")["amount"]
+            .sum()
+        )
 
-option = st.sidebar.selectbox('Select One',['Overall Analysis','StartUp','Investor'])
+        st.subheader("Sectors Invested In")
 
-if option == 'Overall Analysis':
-    load_overall_analysis()
+        pie_fig, pie_ax = plt.subplots()
+        pie_ax.pie(
+            sector_series,
+            labels=sector_series.index,
+            autopct="%0.1f%%",
+        )
 
-elif option == 'StartUp':
-    st.sidebar.selectbox('Select StartUp',sorted(df['startup'].unique().tolist()))
-    btn1 = st.sidebar.button('Find StartUp Details')
-    st.title('StartUp Analysis')
+        st.pyplot(pie_fig)
+
+    # Year-wise investment
+    yearly_investment_series = (
+        funding_df[funding_df["investors"].str.contains(investor_name)]
+        .groupby("year")["amount"]
+        .sum()
+    )
+
+    st.subheader("Year-on-Year Investment")
+
+    line_fig, line_ax = plt.subplots()
+    line_ax.plot(
+        yearly_investment_series.index,
+        yearly_investment_series.values,
+    )
+
+    st.pyplot(line_fig)
+
+
+# ==========================================================
+# Sidebar
+# ==========================================================
+st.sidebar.title("Startup Funding Analysis")
+
+analysis_type = st.sidebar.selectbox(
+    "Select Analysis",
+    ["Overall Analysis", "StartUp", "Investor"],
+)
+
+if analysis_type == "Overall Analysis":
+
+    show_overall_analysis()
+
+elif analysis_type == "StartUp":
+
+    selected_startup = st.sidebar.selectbox(
+        "Select StartUp",
+        sorted(funding_df["startup"].unique())
+    )
+
+    show_startup_btn = st.sidebar.button("Find StartUp Details")
+
+    st.title("StartUp Analysis")
+
 else:
-    selected_investor = st.sidebar.selectbox('Select StartUp',sorted(set(df['investors'].str.split(',').sum())))
-    btn2 = st.sidebar.button('Find Investor Details')
-    if btn2:
-        load_investor_details(selected_investor)
+
+    investor_name = st.sidebar.selectbox(
+        "Select Investor",
+        sorted(set(funding_df["investors"].str.split(",").sum()))
+    )
+
+    show_investor_btn = st.sidebar.button("Find Investor Details")
+
+    if show_investor_btn:
+        show_investor_analysis(investor_name)
